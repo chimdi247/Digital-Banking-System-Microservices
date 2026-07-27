@@ -1,0 +1,6 @@
+com\banking\frauddetectionservice\config\RedisConfig.class
+com\banking\frauddetectionservice\service\FraudDetectionService.class
+com\banking\frauddetectionservice\FraudDetectionServiceApplication.class
+com\banking\frauddetectionservice\service\TransactionEventConsumer.class
+com\banking\frauddetectionservice\client\AccountServiceClient.class
+com\banking\frauddetectionservice\model\FraudCheckResult.class
