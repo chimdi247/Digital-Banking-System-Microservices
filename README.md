@@ -7,31 +7,32 @@
 
 | Service | Port | Responsibility |
 |---|---|---|
-| api-gateway | 8080 | Single entry point, Rate limiting |
-| account-service | 8081 | Account management, Balance |
-| transaction-service | 8082 | Money transfers, Transaction history |
-| payment-service | 8083 | Razorpay integration, Webhooks |
+| frontend | 3000 | React/shadcn web app |
+| api-gateway | 8080 | Single entry point, JWT auth, CORS, rate limiting |
+| account-service | 8081 | Accounts, balances, login/auth (JWT) |
+| transaction-service | 8082 | Money transfers, transaction history |
+| payment-service | 8083 | Razorpay integration, webhooks |
 | fraud-detection-service | 8084 | Real time fraud detection via Redis |
-| notification-service | 8085 | Transaction and fraud alerts |
+| notification-service | 8085 | Transaction and fraud alerts (logged, demo only) |
 
 ---
 
 ## Architecture Flow
 
 ```
-User → API Gateway (rate limiting)
-             ↓
-    Account / Transaction / Payment Service
-             ↓
-        Apache Kafka
-             ↓
-    ┌────────────────────────┐
-    │                        │
-Fraud Detection      Notification Service
-(Redis patterns)     (alerts via email/SMS)
-    │
-Account Service
-(block if fraud)
+Browser → React frontend → API Gateway (JWT auth, rate limiting, CORS)
+                                    ↓
+                Account / Transaction / Payment Service
+                                    ↓
+                              Apache Kafka
+                                    ↓
+                    ┌────────────────────────┐
+                    │                        │
+              Fraud Detection      Notification Service
+              (Redis patterns)     (alerts via email/SMS)
+                    │
+              Account Service
+              (block if fraud)
 ```
 
 ---
@@ -42,6 +43,7 @@ Account Service
 |---|---|---|
 | transaction.initiated | Transaction Service | Fraud Detection |
 | fraud.check.result | Fraud Detection | Transaction Service |
+| transaction.otp.generated | Transaction Service | Notification |
 | transaction.completed | Transaction Service | Account Service, Notification |
 | fraud.detected | Fraud Detection | Account Service, Notification |
 | payment.completed | Payment Service | Notification |
@@ -50,31 +52,20 @@ Account Service
 
 ## How To Run
 
-### Step 1: Start Infrastructure
+Everything — MySQL, Redis, Kafka, Kafka UI, all 6 backend services, and the
+frontend — runs from a single command:
+
 ```bash
-docker-compose up -d
+cp .env.example .env   # fill in real values first
+docker compose up -d --build
 ```
 
-### Step 2: Start All Services
-```bash
-# Terminal 1
-cd account-service && mvn spring-boot:run
+Then open the frontend (`http://localhost:3000` by default) and log in with
+the seeded admin account: `admin@example.com` / `password123`.
 
-# Terminal 2
-cd transaction-service && mvn spring-boot:run
-
-# Terminal 3
-cd payment-service && mvn spring-boot:run
-
-# Terminal 4
-cd fraud-detection-service && mvn spring-boot:run
-
-# Terminal 5
-cd notification-service && mvn spring-boot:run
-
-# Terminal 6
-cd api-gateway && mvn spring-boot:run
-```
+See **[README.docker.md](./README.docker.md)** for the full walkthrough —
+environment variables, how the database schema and admin login are created
+automatically, the transfer/OTP flow, and known limitations.
 
 ---
 ## "Don't forget to fork and star the repo".

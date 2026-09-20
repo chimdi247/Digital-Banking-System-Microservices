@@ -81,6 +81,35 @@ public class PaymentService {
     }
 
 
+    public com.banking.paymentservice.dto.PaymentResponse getPayment(String paymentId) {
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new RuntimeException("Payment not found: " + paymentId));
+        return mapToResponse(payment);
+    }
+
+    public java.util.List<com.banking.paymentservice.dto.PaymentResponse> getPaymentsByAccount(String accountNumber) {
+        return paymentRepository.findByAccountNumberOrderByCreatedAtDesc(accountNumber)
+                .stream()
+                .map(this::mapToResponse)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    private com.banking.paymentservice.dto.PaymentResponse mapToResponse(Payment payment) {
+        return new com.banking.paymentservice.dto.PaymentResponse(
+                payment.getId(),
+                payment.getRazorpayOrderId(),
+                payment.getRazorpayPaymentId(),
+                payment.getAccountNumber(),
+                payment.getAmount(),
+                payment.getCurrency(),
+                payment.getStatus(),
+                payment.getDescription(),
+                payment.getFailureReason(),
+                payment.getCreatedAt(),
+                payment.getUpdatedAt()
+        );
+    }
+
     public void handleWebhook(Map<String, Object> payload) {
         log.info("Received Razorpay webhook: {}", payload.get("event"));
 

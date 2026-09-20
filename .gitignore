@@ -31,3 +31,16 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Environment ###
+.env
+.env.*
+!.env.example
+!frontend/.env.example
+
+### Frontend (Node/Vite) ###
+frontend/node_modules/
+frontend/dist/
+frontend/*.tsbuildinfo
+frontend/vite.config.js
+frontend/vite.config.d.ts

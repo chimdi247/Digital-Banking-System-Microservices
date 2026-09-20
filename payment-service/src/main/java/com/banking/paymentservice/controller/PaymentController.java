@@ -30,6 +30,21 @@ public class PaymentController {
                 .body(paymentService.createPaymentOrder(request));
     }
 
+    // Poll payment status (e.g. after the Razorpay Checkout widget closes,
+    // while waiting for the webhook to confirm the payment).
+    @GetMapping("/{paymentId}")
+    public ResponseEntity<com.banking.paymentservice.dto.PaymentResponse> getPayment(
+            @PathVariable String paymentId) {
+        return ResponseEntity.ok(paymentService.getPayment(paymentId));
+    }
+
+    // Payment history for an account
+    @GetMapping("/account/{accountNumber}")
+    public ResponseEntity<java.util.List<com.banking.paymentservice.dto.PaymentResponse>> getPaymentsByAccount(
+            @PathVariable String accountNumber) {
+        return ResponseEntity.ok(paymentService.getPaymentsByAccount(accountNumber));
+    }
+
     // Razorpay webhook endpoint
     @PostMapping("/webhook")
     public ResponseEntity<String> handleWebhook(

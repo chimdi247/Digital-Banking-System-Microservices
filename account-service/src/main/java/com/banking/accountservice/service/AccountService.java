@@ -61,6 +61,20 @@ public class AccountService {
         return mapToResponse(account);
     }
 
+    public java.util.List<AccountResponse> getAccountsByEmail(String email) {
+        return accountRepository.findByEmailOrderByCreatedAtDesc(email)
+                .stream()
+                .map(this::mapToResponse)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    public java.util.List<AccountResponse> getAllAccounts() {
+        return accountRepository.findAll()
+                .stream()
+                .map(this::mapToResponse)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
 
     public BigDecimal getBalance(String accountNumber) {
         return findByAccountNumber(accountNumber).getBalance();

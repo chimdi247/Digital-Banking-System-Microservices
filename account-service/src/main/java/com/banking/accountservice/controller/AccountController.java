@@ -35,6 +35,19 @@ public class AccountController {
         return ResponseEntity.ok(accountService.getAccount(accountNumber));
     }
 
+    // List all accounts belonging to a user (by login email)
+    @GetMapping("/by-email/{email}")
+    public ResponseEntity<java.util.List<AccountResponse>> getAccountsByEmail(
+            @PathVariable String email) {
+        return ResponseEntity.ok(accountService.getAccountsByEmail(email));
+    }
+
+    // List all accounts — admin use
+    @GetMapping
+    public ResponseEntity<java.util.List<AccountResponse>> getAllAccounts() {
+        return ResponseEntity.ok(accountService.getAllAccounts());
+    }
+
     // Get account balance
     @GetMapping("/{accountNumber}/balance")
     public ResponseEntity<BigDecimal> getBalance(

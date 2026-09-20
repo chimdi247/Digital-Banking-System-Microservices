@@ -1,37 +1,59 @@
-version: '3.8'
+name: digital-banking
+
+# -----------------------------------------------------------------------------
+# One-file deployment for the whole platform.
+#
+# Usage:
+#   cp .env.example .env      # fill in real secrets/URLs first
+#   docker compose up -d --build
+#
+# See README.docker.md for the full walkthrough, including how the database
+# schema and the seeded admin login (admin@example.com / password123) work.
+# -----------------------------------------------------------------------------
 
 services:
 
   # ---------------- Infrastructure ----------------
 
   redis:
-    image: redis:latest
+    image: redis:7-alpine
     container_name: redis
+    restart: unless-stopped
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     networks:
       - banking-network
 
   mysql:
     image: mysql:8.0
     container_name: mysql
+    restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
     ports:
       - "3306:3306"
     volumes:
       - mysql-data:/var/lib/mysql
+      # Executed once, in filename order, only when the data volume is empty.
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 30s
     networks:
       - banking-network
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
     container_name: zookeeper
+    restart: unless-stopped
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
@@ -41,6 +63,7 @@ services:
   kafka:
     image: confluentinc/cp-kafka:7.4.0
     container_name: kafka
+    restart: unless-stopped
     depends_on:
       - zookeeper
     ports:
@@ -53,6 +76,29 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:29092 >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 20s
+    networks:
+      - banking-network
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    restart: unless-stopped
+    ports:
+      - "${KAFKA_UI_PORT:-8090}:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: banking-cluster
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+      DYNAMIC_CONFIG_ENABLED: "true"
+    depends_on:
+      kafka:
+        condition: service_healthy
     networks:
       - banking-network
 
@@ -68,12 +114,13 @@ services:
       mysql:
         condition: service_healthy
       kafka:
-        condition: service_started
+        condition: service_healthy
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/account_db?createDatabaseIfNotExist=true
       SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
     ports:
       - "8081:8081"
     networks:
@@ -89,15 +136,15 @@ services:
       mysql:
         condition: service_healthy
       kafka:
-        condition: service_started
+        condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
       account-service:
         condition: service_started
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/transaction_db?createDatabaseIfNotExist=true
       SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
@@ -117,13 +164,13 @@ services:
       mysql:
         condition: service_healthy
       kafka:
-        condition: service_started
+        condition: service_healthy
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/payment_db?createDatabaseIfNotExist=true
       SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      # Razorpay keys — override with real values, e.g. via an .env file (see note below)
+      # Razorpay keys — required for the Payments/Top-up page to work.
       RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-your_key_id}
       RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-your_key_secret}
       RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:-your-webhook-secret}
@@ -140,9 +187,9 @@ services:
     restart: unless-stopped
     depends_on:
       kafka:
-        condition: service_started
+        condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
       account-service:
         condition: service_started
     environment:
@@ -163,7 +210,7 @@ services:
     restart: unless-stopped
     depends_on:
       kafka:
-        condition: service_started
+        condition: service_healthy
     environment:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
     ports:
@@ -179,7 +226,7 @@ services:
     restart: unless-stopped
     depends_on:
       redis:
-        condition: service_started
+        condition: service_healthy
       account-service:
         condition: service_started
       transaction-service:
@@ -189,12 +236,34 @@ services:
     environment:
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
       # Indexed overrides for the spring.cloud.gateway.routes list (order matches application.yml)
       SPRING_CLOUD_GATEWAY_ROUTES_0_URI: http://account-service:8081
       SPRING_CLOUD_GATEWAY_ROUTES_1_URI: http://transaction-service:8082
       SPRING_CLOUD_GATEWAY_ROUTES_2_URI: http://payment-service:8083
     ports:
       - "8080:8080"
+    networks:
+      - banking-network
+
+  # ---------------- Frontend ----------------
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Baked into the JS bundle at build time — must be a URL the
+        # visitor's browser can reach (your host's public IP/domain), not an
+        # internal Docker service name. See .env.example.
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080}
+    container_name: frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      - api-gateway
     networks:
       - banking-network
 
