@@ -201,9 +201,9 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       # Razorpay keys — required for the Payments/Top-up page to work.
-      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-your_key_id}
-      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-your_key_secret}
-      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:-your-webhook-secret}
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
+      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:-}
       OTEL_SERVICE_NAME: payment-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       OTEL_RESOURCE_ATTRIBUTES: service.namespace=digital-banking
@@ -284,7 +284,7 @@ services:
     environment:
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
-      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_SECRET: ${JWT_SECRET:-}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://35.226.68.168:3000}
       # Indexed overrides for the spring.cloud.gateway.routes list (order matches application.yml)
       SPRING_CLOUD_GATEWAY_ROUTES_0_URI: http://account-service:8081
@@ -311,8 +311,8 @@ services:
         # Baked into the JS bundle at build time — must be a URL the
         # visitor's browser can reach (your host's public IP/domain), not an
         # internal Docker service name. See .env.example.
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
-        VITE_OTEL_EXPORTER_OTLP_ENDPOINT: ${VITE_OTEL_EXPORTER_OTLP_ENDPOINT:-/otlp}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
+        VITE_OTEL_EXPORTER_OTLP_ENDPOINT: ${VITE_OTEL_EXPORTER_OTLP_ENDPOINT:-}
         VITE_OTEL_SERVICE_NAME: digital-banking-frontend
     container_name: frontend
     restart: unless-stopped
