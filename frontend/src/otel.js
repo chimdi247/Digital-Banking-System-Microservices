@@ -29,7 +29,7 @@ import { BatchSpanProcessor, WebTracerProvider } from "@opentelemetry/sdk-trace-
 import { ATTR_SERVICE_NAME } from "@opentelemetry/semantic-conventions";
 
 try {
-  const otlpEndpoint = import.meta.env.VITE_OTEL_EXPORTER_OTLP_ENDPOINT || "http://localhost:4318";
+  const otlpEndpoint = import.meta.env.VITE_OTEL_EXPORTER_OTLP_ENDPOINT || "/otlp";
 
   if (otlpEndpoint) {
     const provider = new WebTracerProvider({
