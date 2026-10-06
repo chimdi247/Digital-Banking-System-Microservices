@@ -1,0 +1,111 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: resource-utilization
+    folder: "Digital Banking"
+    interval: 1m
+    rules:
+      - uid: node-cpu-high
+        title: "Node CPU > 50%"
+        condition: C
+        for: 5m
+        noDataState: NoData
+        execErrState: Error
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              expr: >-
+                100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+          - refId: C
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: "__expr__"
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [50] }
+        labels:
+          severity: warning
+          scope: node
+        annotations:
+          summary: "Node {{ $labels.instance }} CPU usage is above 50%"
+          description: >-
+            Host {{ $labels.instance }} has averaged over 50% CPU usage for
+            more than 5 minutes.
+
+      - uid: node-memory-high
+        title: "Node Memory > 50%"
+        condition: C
+        for: 5m
+        noDataState: NoData
+        execErrState: Error
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              expr: >-
+                (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100
+          - refId: C
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: "__expr__"
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [50] }
+        labels:
+          severity: warning
+          scope: node
+        annotations:
+          summary: "Node {{ $labels.instance }} memory usage is above 50%"
+          description: >-
+            Host {{ $labels.instance }} has used over 50% of its available
+            memory for more than 5 minutes.
+
+  - orgId: 1
+    name: service-health
+    folder: "Digital Banking"
+    interval: 1m
+    rules:
+      - uid: service-down
+        title: "Service Down"
+        condition: C
+        for: 2m
+        noDataState: NoData
+        execErrState: Error
+        data:
+          - refId: A
+            relativeTimeRange: { from: 120, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              expr: >-
+                up{job=~"account-service|transaction-service|payment-service|fraud-detection-service|notification-service|api-gateway"}
+          - refId: C
+            relativeTimeRange: { from: 120, to: 0 }
+            datasourceUid: "__expr__"
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: lt, params: [1] }
+        labels:
+          severity: critical
+          scope: service
+        annotations:
+          summary: "{{ $labels.job }} is down"
+          description: >-
+            Prometheus has been unable to scrape {{ $labels.job }} for more
+            than 2 minutes.

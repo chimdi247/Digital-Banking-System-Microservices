@@ -8,6 +8,8 @@ import com.banking.paymentservice.repository.PaymentRepository;
 import com.razorpay.Order;
 import com.razorpay.RazorpayClient;
 import com.razorpay.RazorpayException;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.json.JSONObject;
@@ -27,6 +29,11 @@ public class PaymentService {
 
     private final PaymentRepository paymentRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
+
+    // Business KPI: number of payments successfully captured, scraped
+    // by Prometheus alongside the technical metrics Actuator already
+    // exposes (see application.yml and observability/README.md).
+    private final MeterRegistry meterRegistry;
 
     @Value("${razorpay.key-id}")
     private String keyId;
@@ -135,6 +142,11 @@ public class PaymentService {
             payment.setRazorpayPaymentId(paymentId);
             payment.setStatus(PaymentStatus.COMPLETED);
             paymentRepository.save(payment);
+
+            Counter.builder("payments_captured_total")
+                    .description("Total number of payments successfully captured")
+                    .register(meterRegistry)
+                    .increment();
 
             // Publish payment completed event
             Map<String, Object> event = new HashMap<>();

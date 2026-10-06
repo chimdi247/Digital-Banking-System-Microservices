@@ -9,6 +9,8 @@ import com.banking.transactionservice.model.Transaction;
 import com.banking.transactionservice.model.TransactionStatus;
 import com.banking.transactionservice.model.TransactionType;
 import com.banking.transactionservice.repository.TransactionRepository;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -32,6 +34,11 @@ public class TransactionService {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final RedisTemplate<String, String> redisTemplate;
+
+    // Business KPI: number of transactions successfully completed,
+    // scraped by Prometheus alongside the technical metrics Actuator
+    // already exposes (see application.yml and observability/README.md).
+    private final MeterRegistry meterRegistry;
 
 
     private static final String TRANSACTION_INITIATED_TOPIC = "transaction.initiated";
@@ -182,6 +189,11 @@ public class TransactionService {
         transaction.setStatus(TransactionStatus.COMPLETED);
         transaction.setCompletedAt(LocalDateTime.now());
         transactionRepository.save(transaction);
+
+        Counter.builder("transactions_completed_total")
+                .description("Total number of transactions successfully completed")
+                .register(meterRegistry)
+                .increment();
 
         TransactionCompletedEvent completedEvent = new TransactionCompletedEvent(
                 transaction.getId(),

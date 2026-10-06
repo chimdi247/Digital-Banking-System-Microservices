@@ -109,9 +109,40 @@ docker compose ps
 ```
 
 Kafka UI is available at `http://localhost:8090` (or `$KAFKA_UI_PORT`) if
-you want to inspect topics/consumer groups directly.
+you want to inspect topics/consumer groups directly. Redis Commander is
+available at `http://localhost:8091` (or `$REDIS_COMMANDER_PORT`), login
+`admin` / `admin123` (`$REDIS_COMMANDER_USER` / `$REDIS_COMMANDER_PASSWORD`),
+if you want to browse Redis keys directly.
 
-## 8. Common operations
+## 8. Observability: Grafana, Prometheus, Loki, Tempo
+
+Also started automatically by `docker compose up`, no extra flags needed:
+
+| What | URL | Login |
+|---|---|---|
+| Grafana (6 per-service dashboards) | http://localhost:3001 | `admin` / `admin` |
+| Prometheus | http://localhost:9091 | -- |
+
+Every service (all 6 Spring Boot services, via the OpenTelemetry Java
+agent, plus the React frontend, via a small amount of browser-side SDK
+setup) exports traces with the **same trace_id propagated end to end** --
+pick any request in Tempo or Grafana's trace view and see its full
+journey from the browser click through every backend hop it touched.
+Metrics and logs flow from every service too, and alerting for node
+CPU/memory > 50% is Grafana-managed. Full details in
+[observability/README.md](observability/README.md).
+
+## 9. Load, stress, and spike testing
+
+```bash
+./test/load-test.sh
+./test/stress-test.sh
+./test/spike-test.sh
+```
+
+See [test/README.md](test/README.md).
+
+## 10. Common operations
 
 ```bash
 # Rebuild + restart a single service after a code change

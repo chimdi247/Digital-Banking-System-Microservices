@@ -22,9 +22,15 @@ USER spring:spring
 
 COPY --from=build /app/target/*.jar app.jar
 
+# OpenTelemetry Java agent: zero-code auto-instrumentation for traces
+# (Spring MVC/WebFlux, JDBC, Kafka, Redis, the JVM itself), configured
+# entirely through OTEL_* environment variables (see docker-compose.yml).
+# See observability/README.md.
+ADD https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/latest/download/opentelemetry-javaagent.jar /app/opentelemetry-javaagent.jar
+
 EXPOSE 8084
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
   CMD curl -f http://localhost:8084/actuator/health || exit 1
 
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-javaagent:/app/opentelemetry-javaagent.jar", "-jar", "app.jar"]
