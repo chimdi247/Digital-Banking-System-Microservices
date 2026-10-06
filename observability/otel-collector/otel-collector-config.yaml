@@ -13,7 +13,7 @@ receivers:
           # origin here if you change FRONTEND_PORT / deploy behind a
           # domain.
           allowed_origins:
-            - "http://localhost:3000"
+            - "http://35.226.68.168:3000"
             - "http://localhost:*"
           allowed_headers:
             - "*"
@@ -30,20 +30,19 @@ processors:
         action: upsert
 
 exporters:
-  # Traces -> Tempo. This is the single place every service's spans
-  # (backend, via the Java agent, and the browser, via src/otel.js)
-  # converge, so a request's full journey -- frontend click through
-  # api-gateway through every downstream microservice -- shows up as
-  # one connected trace under one trace_id in Tempo. See
-  # observability/README.md.
+  # Traces -> Tempo.
   otlp/tempo:
     endpoint: tempo:4317
     tls:
       insecure: true
 
-  # Logs -> Loki's native OTLP ingestion endpoint. A secondary path
-  # alongside Promtail (which tails every container's stdout directly
-  # -- the primary path, see observability/promtail/promtail-config.yml).
+  # Metrics -> exposed on :8889 for Prometheus to scrape.
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    resource_to_telemetry_conversion:
+      enabled: true
+
+  # Logs -> Loki's native OTLP ingestion endpoint.
   otlphttp/loki:
     endpoint: http://loki:3100/otlp
     tls:
@@ -58,6 +57,11 @@ service:
       receivers: [otlp]
       processors: [resource, batch]
       exporters: [otlp/tempo, debug]
+
+    metrics:
+      receivers: [otlp]
+      processors: [resource, batch]
+      exporters: [prometheus, debug]
 
     logs:
       receivers: [otlp]
