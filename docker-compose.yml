@@ -212,7 +212,7 @@ services:
       OTEL_METRICS_EXPORTER: none
       OTEL_LOGS_EXPORTER: otlp
       OTEL_TRACES_EXPORTER: otlp
-      OTEL_EXPORTER_OTLP_PROTOCOL: grpc 
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
     ports:
       - "8083:8083"
     networks:
@@ -289,7 +289,7 @@ services:
     environment:
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
-      JWT_SECRET: ${JWT_SECRET:-}
+      JWT_SECRET: ${JWT_SECRET:?}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://35.226.68.168:3000}
       # Indexed overrides for the spring.cloud.gateway.routes list (order matches application.yml)
       ACCOUNT_SERVICE_URL: http://account-service:8081

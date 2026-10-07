@@ -13,8 +13,8 @@ export const options = {
       startVUs: 0,
       stages: [
         { duration: '30s', target: 20 },
-        { duration: '2m', target: 800 },
-        { duration: '30s', target: 0 },
+        { duration: '2m', target: 1000 },
+        { duration: '30s', target: 50 },
       ],
       gracefulRampDown: '10s',
     },
