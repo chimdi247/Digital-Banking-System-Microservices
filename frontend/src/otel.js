@@ -72,3 +72,23 @@ try {
         // propagateTraceHeaderCorsUrls is kept in case the API base URL
         // is ever pointed at a different origin again.
         new XMLHttpRequestInstrumentation({
+          propagateTraceHeaderCorsUrls: [/.+/],
+          ignoreUrls,
+        }),
+        // Covers any direct fetch() calls too, for completeness.
+        new FetchInstrumentation({
+          propagateTraceHeaderCorsUrls: [/.+/],
+          ignoreUrls,
+        }),
+      ],
+    });
+
+    // Referenced so bundlers/linters don't flag the import as unused;
+    // context is what the instrumentations above read/write internally.
+    void context;
+  }
+} catch (error) {
+  // Never let telemetry setup break the app.
+  // eslint-disable-next-line no-console
+  console.warn("OpenTelemetry browser tracing failed to start:", error);
+}
