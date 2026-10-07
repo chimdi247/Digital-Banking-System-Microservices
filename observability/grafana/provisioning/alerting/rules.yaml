@@ -9,7 +9,7 @@ groups:
       - uid: node-cpu-high
         title: "Node CPU > 50%"
         condition: C
-        for: 5m
+        for: 1m
         noDataState: NoData
         execErrState: Error
         data:
@@ -42,7 +42,7 @@ groups:
       - uid: node-memory-high
         title: "Node Memory > 50%"
         condition: C
-        for: 5m
+        for: 1m
         noDataState: NoData
         execErrState: Error
         data:
@@ -80,7 +80,7 @@ groups:
       - uid: service-down
         title: "Service Down"
         condition: C
-        for: 2m
+        for: 1m
         noDataState: NoData
         execErrState: Error
         data:
