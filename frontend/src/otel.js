@@ -32,6 +32,15 @@ try {
   const otlpEndpoint = import.meta.env.VITE_OTEL_EXPORTER_OTLP_ENDPOINT || "/otlp";
 
   if (otlpEndpoint) {
+    // The OTLP exporter parses its url with new URL(), which requires an
+    // absolute URL. Resolve relative endpoints (like "/otlp", proxied by
+    // nginx to the collector) against the page origin. Absolute endpoints
+    // pass through unchanged.
+    const otlpTracesUrl = new URL(
+      `${otlpEndpoint.replace(/\/$/, "")}/v1/traces`,
+      window.location.origin,
+    ).href;
+
     const provider = new WebTracerProvider({
       resource: new Resource({
         [ATTR_SERVICE_NAME]: import.meta.env.VITE_OTEL_SERVICE_NAME || "digital-banking-frontend",
@@ -39,7 +48,7 @@ try {
     });
 
     provider.addSpanProcessor(
-      new BatchSpanProcessor(new OTLPTraceExporter({ url: `${otlpEndpoint}/v1/traces` })),
+      new BatchSpanProcessor(new OTLPTraceExporter({ url: otlpTracesUrl })),
     );
 
     // ZoneContextManager keeps the active span correct across async
@@ -50,37 +59,16 @@ try {
 
     // Don't trace the exporter's own OTLP POSTs -- that would create
     // a span for every export, which triggers another export, etc.
-    const ignoreUrls = [new RegExp(otlpEndpoint.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))];
+    // Match on the path so this works for relative and absolute endpoints.
+    const otlpPath = new URL(otlpTracesUrl).pathname;
+    const ignoreUrls = [new RegExp(otlpPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))];
 
     registerInstrumentations({
       instrumentations: [
         // axios (src/lib/api.ts) uses XMLHttpRequest under the hood in
         // the browser, so this is the instrumentation that actually
-        // covers this app's API calls. propagateTraceHeaderCorsUrls is
-        // required: the API gateway is a different origin than the
-        // frontend, and OpenTelemetry deliberately does NOT inject
-        // trace headers into cross-origin requests unless told to.
-        // (The gateway's CORS config already allows any header --
-        // allowedHeaders: "*" -- so traceparent/tracestate pass
-        // preflight.)
+        // covers this app's API calls. Requests now go through the nginx
+        // proxy on the same origin, so propagation works without CORS;
+        // propagateTraceHeaderCorsUrls is kept in case the API base URL
+        // is ever pointed at a different origin again.
         new XMLHttpRequestInstrumentation({
-          propagateTraceHeaderCorsUrls: [/.+/],
-          ignoreUrls,
-        }),
-        // Covers any direct fetch() calls too, for completeness.
-        new FetchInstrumentation({
-          propagateTraceHeaderCorsUrls: [/.+/],
-          ignoreUrls,
-        }),
-      ],
-    });
-
-    // Referenced so bundlers/linters don't flag the import as unused;
-    // context is what the instrumentations above read/write internally.
-    void context;
-  }
-} catch (error) {
-  // Never let telemetry setup break the app.
-  // eslint-disable-next-line no-console
-  console.warn("OpenTelemetry browser tracing failed to start:", error);
-}
