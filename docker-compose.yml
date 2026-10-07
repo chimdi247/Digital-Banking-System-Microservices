@@ -437,7 +437,7 @@ services:
       - banking-network
 
   tempo:
-    image: grafana/tempo:latest
+    image: grafana/tempo:2.10.1
     container_name: tempo
     restart: unless-stopped
     user: root
